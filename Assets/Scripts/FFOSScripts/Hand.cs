@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
+using MotionTranslator;
 
 //Hand is used to help animate
 public class Hand : MonoBehaviour
@@ -19,6 +20,7 @@ public class Hand : MonoBehaviour
     private InputDevice _targetDevice;
     private Animator _handAnimator;
     private SkinnedMeshRenderer _handMesh;
+    private Controller _controller;
 
     public void HideHandOnSelect()
     {
@@ -48,6 +50,8 @@ public class Hand : MonoBehaviour
             GameObject spawnedHand = Instantiate(handPrefab, transform);
             _handAnimator = spawnedHand.GetComponent<Animator>();
             _handMesh = spawnedHand.GetComponentInChildren<SkinnedMeshRenderer>();
+
+            _controller = new Controller(_targetDevice);
         }
     }
 
@@ -68,25 +72,9 @@ public class Hand : MonoBehaviour
 
     private void UpdateHand()
     {
-        //This will get the value for our trigger from the target device and output a flaot into triggerValue
-        if (_targetDevice.TryGetFeatureValue(CommonUsages.trigger, out float triggerValue))
-        {
-            _handAnimator.SetFloat("Trigger", triggerValue);
-        }
-        else
-        {
-            _handAnimator.SetFloat("Trigger", 0);
-        }
-        //This will get the value for our grip from the target device and output a flaot into gripValue
-        if (_targetDevice.TryGetFeatureValue(CommonUsages.grip, out float gripValue))
-        {
-            _handAnimator.SetFloat("Grip", gripValue);
-        }
-        else
-        {
-            _handAnimator.SetFloat("Grip", 0);
-        }
+        _handAnimator.SetFloat("Trigger", (_controller.getTriggerButton())? 1.0f : 0.0f);
+        _handAnimator.SetFloat("Grip", _controller.getGrip());
+        _handAnimator.SetFloat("TriggerTouch", (_controller.getTriggerTouch())? 1.0f : 0.0f);
+        _handAnimator.SetFloat("ThumbTouch", (_controller.getThumbTouch())? 1.0f : 0.0f);
     }
-
-
 }
