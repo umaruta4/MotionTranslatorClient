@@ -22,6 +22,8 @@ public class Hand : MonoBehaviour
     private SkinnedMeshRenderer _handMesh;
     private Controller _controller;
 
+    public int count;
+
     public void HideHandOnSelect()
     {
         if (hideHandOnSelect)
@@ -31,7 +33,8 @@ public class Hand : MonoBehaviour
     }
     private void Start()
     {
-        InitializeHand();
+        count = 0;
+        //InitializeHand();
     }
 
     private void InitializeHand()
@@ -44,14 +47,17 @@ public class Hand : MonoBehaviour
         //We check if any devices are found here to avoid errors.
         if (devices.Count > 0)
         {
-            
             _targetDevice = devices[0];
 
-            GameObject spawnedHand = Instantiate(handPrefab, transform);
-            _handAnimator = spawnedHand.GetComponent<Animator>();
-            _handMesh = spawnedHand.GetComponentInChildren<SkinnedMeshRenderer>();
+            // Making sure that it's valid before instantiating the hand. - umaruto 31/08/2023
+            if(_targetDevice.isValid){
+                Debug.LogWarning("Instantiating Hand");
+                GameObject spawnedHand = Instantiate(handPrefab, transform);
+                _handAnimator = spawnedHand.GetComponent<Animator>();
+                _handMesh = spawnedHand.GetComponentInChildren<SkinnedMeshRenderer>();
 
-            _controller = new Controller(_targetDevice);
+                _controller = new Controller(_targetDevice);
+            }
         }
     }
 
@@ -62,6 +68,10 @@ public class Hand : MonoBehaviour
         //Since our target device might not register at the start of the scene, we continously check until one is found.
         if(!_targetDevice.isValid)
         {
+            // When isValid went false again even though _handAnimator already been instantiated, destroy the hand. - umaruto 31/08/2023
+            if(_handAnimator != null){
+                DestroyHand();
+            }
             InitializeHand();
         }
         else
@@ -76,5 +86,17 @@ public class Hand : MonoBehaviour
         _handAnimator.SetFloat("Grip", _controller.getGrip());
         _handAnimator.SetFloat("TriggerTouch", (_controller.getTriggerTouch())? 1.0f : 0.0f);
         _handAnimator.SetFloat("ThumbTouch", (_controller.getThumbTouch())? 1.0f : 0.0f);
+    }
+
+    // Adding destroy hand just incase if hand went buggy. - umaruto 31/08/2023
+    private void DestroyHand()
+    {
+
+        Destroy(_handAnimator.gameObject);
+
+        // Reset references
+        _handAnimator = null;
+        _handMesh = null;
+        _controller = null;
     }
 }
