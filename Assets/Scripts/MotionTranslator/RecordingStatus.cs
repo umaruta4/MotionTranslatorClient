@@ -21,16 +21,20 @@ namespace MotionTranslator {
         private List<List<float>> _rightControllerRecordData;
         private VRInput _controller;
         private bool _recording;
+        private bool _prevButtonState = false;
 
         // Start is called before the first frame update
         void Start()
         {
             _controller = GetComponent<VRInput>();
             _recording = false;
-        }
+            _leftControllerRecordData = new List<List<float>>();
+            _rightControllerRecordData = new List<List<float>>();
 
-        // Update is called once per frame
-        void Update()
+    }
+
+    // Update is called once per frame
+    void Update()
         {
             if(_controller._rightController.isValid){
                 CheckRecordingButton();
@@ -52,10 +56,13 @@ namespace MotionTranslator {
 
         void CheckRecordingButton()
         {
-            if(_controller.rightController.getSecondaryButton()){
+            bool currentButtonState = _controller.rightController.getSecondaryButton();
+            if (currentButtonState && !_prevButtonState){
                 // Flip switch
                 _recording = !_recording;
             }
+
+            _prevButtonState = currentButtonState;
         }
 
         void ShowRecordingMessage()
@@ -137,7 +144,7 @@ namespace MotionTranslator {
             };
 
 
-            string url = "http://127.0.0.1/api/store";
+            string url = "http://127.0.0.1:5000/api/store";
 
             try{
                 HttpResponseMessage response = jsonSender.SendJson(url, jsonObject);
