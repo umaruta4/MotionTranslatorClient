@@ -1,8 +1,11 @@
+using System;
 using System.Collections;
+using System.Net.Http;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
 using TMPro;
+using Newtonsoft.Json;
 
 namespace MotionTranslator {
 
@@ -79,10 +82,10 @@ namespace MotionTranslator {
             Quaternion leftQuaternion = _controller.leftController.getRotation();
 
             _leftControllerRecordData.Add(new List<float> {
-                _controller.leftController.getTriggerTouch() 1.0f : 0.0f,
+                _controller.leftController.getTriggerTouch() ? 1.0f : 0.0f,
                 _controller.leftController.getTriggerButton() ? 1.0f : 0.0f,
                 _controller.leftController.getGrip(),
-                _controller.leftController.getThumbTouch() 1.0f : 0.0f,
+                _controller.leftController.getThumbTouch() ? 1.0f : 0.0f,
                 leftPosition.x,
                 leftPosition.y,
                 leftPosition.z,
@@ -121,13 +124,18 @@ namespace MotionTranslator {
         {
             var jsonSender = new JsonSender();
 
-            var jsonObject = new
+            var jsonObject = new 
             {
                 table = "tabel",
-                class = inputField.text,
-                text = inputField.text;
-                data = new {_leftControllerRecordData, _rightControllerRecordData}
+                classValue = inputField.text,
+                text = inputField.text,
+                data = new 
+                {
+                    _leftControllerRecordData,
+                    _rightControllerRecordData
+                }
             };
+
 
             string url = "http://127.0.0.1/api/store";
 
