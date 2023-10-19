@@ -19,7 +19,7 @@ namespace MotionTranslator {
 
         public bool getThumbTouch()
         {
-            bool thumbTouch = (getJoyStickTouch() || getPrimaryTouch() || getSecondaryTouch());
+            bool thumbTouch = (getJoyStickTouch() || getPrimaryTouch());
             return thumbTouch;
         }
 
@@ -109,6 +109,16 @@ namespace MotionTranslator {
             if (_controller.TryGetFeatureValue(CommonUsages.secondaryTouch, out bool secondaryTouch))
             {
                 return secondaryTouch;
+            }
+
+            return false;
+        }
+
+        public bool getSecondaryButton()
+        {
+            if (_controller.TryGetFeatureValue(CommonUsages.secondaryButton, out bool secondaryButton))
+            {
+                return secondaryButton;
             }
 
             return false;
