@@ -8,7 +8,7 @@ using UnityEngine;
 
 
 namespace MotionTranslator {
-    public class JsonSender : MonoBehaviour
+    public class JsonSender
     {
         private readonly HttpClient _httpClient;
 

@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.XR;
 using TMPro;
 using Newtonsoft.Json;
+using UnityEngine.UI;
 
 namespace MotionTranslator {
 
@@ -13,28 +14,40 @@ namespace MotionTranslator {
     public class RecordingStatus : MonoBehaviour
     {
         
-        public TMP_InputField inputField;
+        public TMP_InputField textField;
+        public TMP_InputField labelField;
         public TextMeshProUGUI content;
+        public TextMeshProUGUI recordingText;
         public TextMeshProUGUI statusText;
+        public Button cancelButton;
 
         private List<List<float>> _leftControllerRecordData;
         private List<List<float>> _rightControllerRecordData;
         private VRInput _controller;
         private bool _recording;
-        private bool _prevButtonState = false;
+        private bool _prevButtonState;
+        private bool _cancelling;
 
         // Start is called before the first frame update
         void Start()
         {
-            _controller = GetComponent<VRInput>();
             _recording = false;
+            _cancelling = false;
+            _prevButtonState = false;
             _leftControllerRecordData = new List<List<float>>();
             _rightControllerRecordData = new List<List<float>>();
 
-    }
+            _controller = GetComponent<VRInput>();
+            if (cancelButton == null)
+            {
+                cancelButton = GetComponent<Button>();
+            }
 
-    // Update is called once per frame
-    void Update()
+            initializeListener();
+        }
+
+        // Update is called once per frame
+        void Update()
         {
             if(_controller._rightController.isValid){
                 CheckRecordingButton();
@@ -43,15 +56,41 @@ namespace MotionTranslator {
             if(_recording){
                 ShowRecordingMessage();
                 RecordControllerData();
+                ShowCancelButton();
             }else{
-                if(_leftControllerRecordData.Count > 0 || _rightControllerRecordData.Count > 0){
-                    ShowSendingRecordMessage();
+                if((_leftControllerRecordData.Count > 0 || _rightControllerRecordData.Count > 0) && !_cancelling){
                     SendControllerRecordDataThroughNetwork();
                     _leftControllerRecordData.Clear();
                     _rightControllerRecordData.Clear();
                 }
                 ShowNotRecordingMessage();
+                HideCancelButton();
             }
+        }
+
+        void initializeListener()
+        {
+            cancelButton.onClick.AddListener(HandleCancleButtonClick);
+        }
+
+        void HandleCancleButtonClick()
+        {
+            _cancelling = true;
+            _recording = false;
+            _leftControllerRecordData.Clear();
+            _rightControllerRecordData.Clear();
+            statusText.text = "Record Cancelled.";
+            _cancelling = false;
+        }
+
+        void ShowCancelButton()
+        {
+            cancelButton.gameObject.SetActive(true);
+        }
+
+        void HideCancelButton()
+        {
+            cancelButton.gameObject.SetActive(false);
         }
 
         void CheckRecordingButton()
@@ -67,75 +106,90 @@ namespace MotionTranslator {
 
         void ShowRecordingMessage()
         {
-            statusText.text = "Recording...";
-            content.text = "Text : " + inputField.text;
-        }
-
-        void ShowSendingRecordMessage()
-        {
-            statusText.text = "Sending Record Data Through Network...";
+            recordingText.text = "Recording...";
+            content.text = "Text : " + textField.text;
         }
 
         void ShowNotRecordingMessage()
         {
-            statusText.text = "Not Recording...";
+            recordingText.text = "Not Recording...";
             content.text = "Text : ";
         }
 
         void RecordControllerData()
         {
+            Controller vrHeadset = _controller.HMD;
+
+            // Get the headset's position and rotation
+            Vector3 headsetPosition = vrHeadset.getPosition();
+            Quaternion headsetRotation = vrHeadset.getRotation();
+            Vector3 headsetVelocity = vrHeadset.getVelocity();
+
+            // Get the positions, velocities, and rotations of the left and right controllers
             Vector3 leftPosition = _controller.leftController.getPosition();
             Vector3 leftVelocity = _controller.leftController.getVelocity();
             Quaternion leftQuaternion = _controller.leftController.getRotation();
+
+            Vector3 rightPosition = _controller.rightController.getPosition();
+            Vector3 rightVelocity = _controller.rightController.getVelocity();
+            Quaternion rightQuaternion = _controller.rightController.getRotation();
+
+            // Transform controller data relative to headset
+            Vector3 transformedLeftPosition = headsetRotation * (leftPosition - headsetPosition);
+            Vector3 transformedRightPosition = headsetRotation * (rightPosition - headsetPosition);
+
+            Quaternion transformedLeftRotation = Quaternion.Inverse(headsetRotation) * leftQuaternion;
+            Quaternion transformedRightRotation = Quaternion.Inverse(headsetRotation) * rightQuaternion;
+
+            Vector3 transformedLeftVelocity = leftVelocity - headsetVelocity;
+            Vector3 transformedRightVelocity = rightVelocity - headsetVelocity;
 
             _leftControllerRecordData.Add(new List<float> {
                 _controller.leftController.getTriggerTouch() ? 1.0f : 0.0f,
                 _controller.leftController.getTriggerButton() ? 1.0f : 0.0f,
                 _controller.leftController.getGrip(),
                 _controller.leftController.getThumbTouch() ? 1.0f : 0.0f,
-                leftPosition.x,
-                leftPosition.y,
-                leftPosition.z,
-                leftVelocity.x,
-                leftVelocity.y,
-                leftVelocity.z,
-                leftQuaternion.w,
-                leftQuaternion.x,
-                leftQuaternion.y,
-                leftQuaternion.z
+                transformedLeftPosition.x,
+                transformedLeftPosition.y,
+                transformedLeftPosition.z,
+                transformedLeftVelocity.x,
+                transformedLeftVelocity.y,
+                transformedLeftVelocity.z,
+                transformedLeftRotation.w,
+                transformedLeftRotation.x,
+                transformedLeftRotation.y,
+                transformedLeftRotation.z
             });
-
-            Vector3 rightPosition = _controller.rightController.getPosition();
-            Vector3 rightVelocity = _controller.rightController.getVelocity();
-            Quaternion rightQuaternion = _controller.rightController.getRotation();
 
             _rightControllerRecordData.Add(new List<float> {
                 _controller.rightController.getTriggerTouch() ? 1.0f : 0.0f,
                 _controller.rightController.getTriggerButton() ? 1.0f : 0.0f,
                 _controller.rightController.getGrip(),
                 _controller.rightController.getThumbTouch() ? 1.0f : 0.0f,
-                rightPosition.x,
-                rightPosition.y,
-                rightPosition.z,
-                rightVelocity.x,
-                rightVelocity.y,
-                rightVelocity.z,
-                rightQuaternion.w,
-                rightQuaternion.x,
-                rightQuaternion.y,
-                rightQuaternion.z
+                transformedRightPosition.x,
+                transformedRightPosition.y,
+                transformedRightPosition.z,
+                transformedRightVelocity.x,
+                transformedRightVelocity.y,
+                transformedRightVelocity.z,
+                transformedRightRotation.w,
+                transformedRightRotation.x,
+                transformedRightRotation.y,
+                transformedRightRotation.z
             });
         }
 
         void SendControllerRecordDataThroughNetwork()
         {
+            statusText.text = "Sending Record Data Through Network...";
+            
             var jsonSender = new JsonSender();
 
             var jsonObject = new 
             {
-                table = "tabel",
-                classValue = inputField.text,
-                text = inputField.text,
+                table = "data_basic_asl",
+                classValue = labelField.text,
+                text = textField.text,
                 data = new 
                 {
                     _leftControllerRecordData,
@@ -155,7 +209,7 @@ namespace MotionTranslator {
                 }
 
                 if(response.IsSuccessStatusCode){
-                    statusText.text = "Data has been sent successfully!";
+                    statusText.text = "Record has been sent successfully!";
                 }else{
                     statusText.text = "Failed to send JSON data";
                 }

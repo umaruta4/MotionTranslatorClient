@@ -61,50 +61,68 @@ namespace MotionTranslator {
 
         void DisplayLeftController()
         {
+            Controller vrHeadset = _controller.HMD;
+
+            Vector3 headsetPosition = vrHeadset.getPosition();
+            Vector3 headsetVelocity = vrHeadset.getVelocity();
+            Quaternion headsetRotation = vrHeadset.getRotation();
+            
             leftTriggerTouchValue.text = _controller.leftController.getTriggerTouch().ToString();
             leftTriggerPressedValue.text = _controller.leftController.getTriggerButton().ToString();
             leftGripPressedValue.text = _controller.leftController.getGrip().ToString();
             leftThumbTouchValue.text = _controller.leftController.getThumbTouch().ToString();
 
             Vector3 position = _controller.leftController.getPosition();
-            leftPosXValue.text = position.x.ToString();
-            leftPosYValue.text = position.y.ToString();
-            leftPosZValue.text = position.z.ToString();
+            Vector3 transformedLeftPosition = headsetRotation * (position - headsetPosition);
+            leftPosXValue.text = transformedLeftPosition.x.ToString();
+            leftPosYValue.text = transformedLeftPosition.y.ToString();
+            leftPosZValue.text = transformedLeftPosition.z.ToString();
 
             Vector3 velocity = _controller.leftController.getVelocity();
-            leftVelXValue.text = velocity.x.ToString();
-            leftVelYValue.text = velocity.y.ToString();
-            leftVelZValue.text = velocity.z.ToString();
+            Vector3 transformedLeftVelocity = velocity - headsetVelocity;
+            leftVelXValue.text = transformedLeftVelocity.x.ToString();
+            leftVelYValue.text = transformedLeftVelocity.y.ToString();
+            leftVelZValue.text = transformedLeftVelocity.z.ToString();
 
             Quaternion quaternion = _controller.leftController.getRotation();
-            leftQuaternionWValue.text = quaternion.w.ToString();
-            leftQuaternionXValue.text = quaternion.x.ToString();
-            leftQuaternionYValue.text = quaternion.y.ToString();
-            leftQuaternionZValue.text = quaternion.z.ToString();
+            Quaternion transformedLeftRotation = Quaternion.Inverse(headsetRotation) * quaternion;
+            leftQuaternionWValue.text = transformedLeftRotation.w.ToString();
+            leftQuaternionXValue.text = transformedLeftRotation.x.ToString();
+            leftQuaternionYValue.text = transformedLeftRotation.y.ToString();
+            leftQuaternionZValue.text = transformedLeftRotation.z.ToString();
         }
 
         void DisplayRightController()
         {
+            Controller vrHeadset = _controller.HMD;
+
+            Vector3 headsetPosition = vrHeadset.getPosition();
+            Vector3 headsetVelocity = vrHeadset.getVelocity();
+            Quaternion headsetRotation = vrHeadset.getRotation();
+
             rightTriggerTouchValue.text = _controller.rightController.getTriggerTouch().ToString();
             rightTriggerPressedValue.text = _controller.rightController.getTriggerButton().ToString();
             rightGripPressedValue.text = _controller.rightController.getGrip().ToString();
             rightThumbTouchValue.text = _controller.rightController.getThumbTouch().ToString();
 
             Vector3 position = _controller.rightController.getPosition();
-            rightPosXValue.text = position.x.ToString();
-            rightPosYValue.text = position.y.ToString();
-            rightPosZValue.text = position.z.ToString();
+            Vector3 transformedRightPosition = headsetRotation * (position - headsetPosition);
+            rightPosXValue.text = transformedRightPosition.x.ToString();
+            rightPosYValue.text = transformedRightPosition.y.ToString();
+            rightPosZValue.text = transformedRightPosition.z.ToString();
 
             Vector3 velocity = _controller.rightController.getVelocity();
-            rightVelXValue.text = velocity.x.ToString();
-            rightVelYValue.text = velocity.y.ToString();
-            rightVelZValue.text = velocity.z.ToString();
+            Vector3 transformedRightVelocity = velocity - headsetVelocity;
+            rightVelXValue.text = transformedRightVelocity.x.ToString();
+            rightVelYValue.text = transformedRightVelocity.y.ToString();
+            rightVelZValue.text = transformedRightVelocity.z.ToString();
 
             Quaternion quaternion = _controller.rightController.getRotation();
-            rightQuaternionWValue.text = quaternion.w.ToString();
-            rightQuaternionXValue.text = quaternion.x.ToString();
-            rightQuaternionYValue.text = quaternion.y.ToString();
-            rightQuaternionZValue.text = quaternion.z.ToString();
+            Quaternion transformedRightRotation = Quaternion.Inverse(headsetRotation) * quaternion;
+            rightQuaternionWValue.text = transformedRightRotation.w.ToString();
+            rightQuaternionXValue.text = transformedRightRotation.x.ToString();
+            rightQuaternionYValue.text = transformedRightRotation.y.ToString();
+            rightQuaternionZValue.text = transformedRightRotation.z.ToString();
         }
     }
 }
