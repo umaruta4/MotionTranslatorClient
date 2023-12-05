@@ -7,6 +7,7 @@ using UnityEngine.XR;
 using TMPro;
 using Newtonsoft.Json;
 using UnityEngine.UI;
+using Newtonsoft.Json.Linq;
 
 namespace MotionTranslator {
 
@@ -17,16 +18,28 @@ namespace MotionTranslator {
         public TMP_InputField textField;
         public TMP_InputField labelField;
         public TextMeshProUGUI content;
+        public TextMeshProUGUI countClassText;
         public TextMeshProUGUI recordingText;
         public TextMeshProUGUI statusText;
+        public TextMeshProUGUI dataCountText;
         public Button cancelButton;
+        public Button sendToNetworkButton;
+        public Button popLastElementButton;
 
-        private List<List<float>> _leftControllerRecordData;
-        private List<List<float>> _rightControllerRecordData;
+        private List<List<float>> _tempLeftControllerRecordData;
+        private List<List<float>> _tempRightControllerRecordData;
         private VRInput _controller;
         private bool _recording;
         private bool _prevButtonState;
         private bool _cancelling;
+
+        private List<object> _dataToSendThroughNetwork;
+
+        private String _previousClassValue = "";
+        private String _currentClassValue = "";
+        private int _countClassValue = 0;
+
+
 
         // Start is called before the first frame update
         void Start()
@@ -34,8 +47,10 @@ namespace MotionTranslator {
             _recording = false;
             _cancelling = false;
             _prevButtonState = false;
-            _leftControllerRecordData = new List<List<float>>();
-            _rightControllerRecordData = new List<List<float>>();
+            _tempLeftControllerRecordData = new List<List<float>>();
+            _tempRightControllerRecordData = new List<List<float>>();
+
+            _dataToSendThroughNetwork = new List<object>();
 
             _controller = GetComponent<VRInput>();
             if (cancelButton == null)
@@ -58,10 +73,20 @@ namespace MotionTranslator {
                 RecordControllerData();
                 ShowCancelButton();
             }else{
-                if((_leftControllerRecordData.Count > 0 || _rightControllerRecordData.Count > 0) && !_cancelling){
-                    SendControllerRecordDataThroughNetwork();
-                    _leftControllerRecordData.Clear();
-                    _rightControllerRecordData.Clear();
+                if((_tempLeftControllerRecordData.Count > 0 && _tempRightControllerRecordData.Count > 0) && !_cancelling){
+                    addRecordControllerDataToList();
+                    _tempLeftControllerRecordData.Clear();
+                    _tempRightControllerRecordData.Clear();
+                    ShowClassCount();
+                }
+
+                if(_dataToSendThroughNetwork.Count > 0)
+                {
+                    ShowSendToNetworkButtonAndCountMessage();
+                }
+                else
+                {
+                    HideSendToNetworkButtonAndCountMessage();
                 }
                 ShowNotRecordingMessage();
                 HideCancelButton();
@@ -71,16 +96,26 @@ namespace MotionTranslator {
         void initializeListener()
         {
             cancelButton.onClick.AddListener(HandleCancleButtonClick);
+            sendToNetworkButton.onClick.AddListener(HandleSendThroughNetwork);
+            popLastElementButton.onClick.AddListener(HandlePopLastElement);
         }
 
         void HandleCancleButtonClick()
         {
             _cancelling = true;
             _recording = false;
-            _leftControllerRecordData.Clear();
-            _rightControllerRecordData.Clear();
+            _tempLeftControllerRecordData.Clear();
+            _tempRightControllerRecordData.Clear();
             statusText.text = "Record Cancelled.";
             _cancelling = false;
+        }
+
+        void HandlePopLastElement()
+        {
+            if (_dataToSendThroughNetwork.Count > 0)
+            {
+                _dataToSendThroughNetwork.RemoveAt(_dataToSendThroughNetwork.Count - 1); // Remove the last element
+            }
         }
 
         void ShowCancelButton()
@@ -91,6 +126,18 @@ namespace MotionTranslator {
         void HideCancelButton()
         {
             cancelButton.gameObject.SetActive(false);
+        }
+
+        void ShowSendToNetworkButtonAndCountMessage()
+        {
+            sendToNetworkButton.gameObject.SetActive(true);
+            dataCountText.text = "Data Count : " + _dataToSendThroughNetwork.Count.ToString();
+        }
+
+        void HideSendToNetworkButtonAndCountMessage()
+        {
+            sendToNetworkButton.gameObject.SetActive(false);
+            dataCountText.text = "";
         }
 
         void CheckRecordingButton()
@@ -114,6 +161,22 @@ namespace MotionTranslator {
         {
             recordingText.text = "Not Recording...";
             content.text = "Text : ";
+        }
+
+        void ShowClassCount()
+        {
+            _currentClassValue = labelField.text;
+            if (_currentClassValue != _previousClassValue)
+            {
+                _previousClassValue = _currentClassValue;
+                _countClassValue = 1;
+            }
+            else
+            {
+                _countClassValue++;
+            }
+
+            countClassText.text = _currentClassValue + " : " + _countClassValue.ToString();
         }
 
         void RecordControllerData()
@@ -144,7 +207,7 @@ namespace MotionTranslator {
             Vector3 transformedLeftVelocity = leftVelocity - headsetVelocity;
             Vector3 transformedRightVelocity = rightVelocity - headsetVelocity;
 
-            _leftControllerRecordData.Add(new List<float> {
+            _tempLeftControllerRecordData.Add(new List<float> {
                 _controller.leftController.getTriggerTouch() ? 1.0f : 0.0f,
                 _controller.leftController.getTriggerButton() ? 1.0f : 0.0f,
                 _controller.leftController.getGrip(),
@@ -161,7 +224,7 @@ namespace MotionTranslator {
                 transformedLeftRotation.z
             });
 
-            _rightControllerRecordData.Add(new List<float> {
+            _tempRightControllerRecordData.Add(new List<float> {
                 _controller.rightController.getTriggerTouch() ? 1.0f : 0.0f,
                 _controller.rightController.getTriggerButton() ? 1.0f : 0.0f,
                 _controller.rightController.getGrip(),
@@ -179,29 +242,35 @@ namespace MotionTranslator {
             });
         }
 
-        void SendControllerRecordDataThroughNetwork()
+        void addRecordControllerDataToList()
         {
-            statusText.text = "Sending Record Data Through Network...";
-            
-            var jsonSender = new JsonSender();
-
-            var jsonObject = new 
+            List < List<float> > _leftControllerRecordData = new List<List<float>>(_tempLeftControllerRecordData);
+            List < List<float> > _rightControllerRecordData = new List<List<float>>(_tempRightControllerRecordData);
+            var jsonObject = new
             {
                 table = "data_basic_asl",
                 classValue = labelField.text,
                 text = textField.text,
-                data = new 
+                data = new
                 {
                     _leftControllerRecordData,
                     _rightControllerRecordData
                 }
             };
 
+            _dataToSendThroughNetwork.Add(jsonObject);
+        }
+
+        void HandleSendThroughNetwork()
+        {
+            statusText.text = "Sending Record Data Through Network...";
+            
+            var jsonSender = new JsonSender();
 
             string url = "http://127.0.0.1:5000/api/store";
 
             try{
-                HttpResponseMessage response = jsonSender.SendJson(url, jsonObject);
+                HttpResponseMessage response = jsonSender.SendJson(url, _dataToSendThroughNetwork);
 
                 if(response == null){
                     statusText.text = "Failed to send JSON data";
@@ -210,6 +279,7 @@ namespace MotionTranslator {
 
                 if(response.IsSuccessStatusCode){
                     statusText.text = "Record has been sent successfully!";
+                    _dataToSendThroughNetwork.Clear();
                 }else{
                     statusText.text = "Failed to send JSON data";
                 }
